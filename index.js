@@ -1,5 +1,5 @@
 /**
- * Summaryception v5.5.4 — Layered Recursive Summarization for SillyTavern
+ * Summaryception v5.5.3 — Layered Recursive Summarization for SillyTavern
  *
  * NON-DESTRUCTIVE: Uses SillyTavern's native /hide and /unhide commands
  * to exclude summarized messages from LLM context while keeping them
@@ -16,6 +16,9 @@ import {
     populateProfileDropdown,
     getConnectionDisplayName,
 } from './connectionutil.js';
+import { Popup, POPUP_TYPE, POPUP_RESULT } from '../../../popup.js';
+import { DOMPurify } from '../../../../lib.js';
+// import { escapeHtml } from '../../../utils.js';
 
 const MODULE_NAME = 'summaryception';
 const LOG_PREFIX = '[Summaryception]';
@@ -376,12 +379,12 @@ async function repairGhostingForRange(startIdx, endIdx) {
 
     // ── Phase 2: Single range-based /hide ──
     if (!s.disableGhosting && repaired > 0) {
-        try {
+            try {
             await SillyTavern.getContext().executeSlashCommandsWithOptions(
                 `/hide ${startIdx}-${endIdx}`,
                 { showOutput: false }
             );
-        } catch (e) {
+            } catch (e) {
             console.error(LOG_PREFIX, `Failed to ghost range ${startIdx}-${endIdx}:`, e);
         }
     }
@@ -426,8 +429,8 @@ async function unghostAllMessages() {
 
     // Collect indices to unhide
     const toUnhide = store.ghostedIndices && store.ghostedIndices.length > 0
-    ? [...store.ghostedIndices]
-    : [];
+        ? [...store.ghostedIndices]
+        : [];
 
     // Fallback for older saves
     if (toUnhide.length === 0) {
@@ -459,14 +462,14 @@ async function unghostAllMessages() {
         { timeOut: 0, extendedTimeOut: 0, tapToDismiss: false }
     );
 
-    try {
+            try {
         await SillyTavern.getContext().executeSlashCommandsWithOptions(
             `/unhide ${minIdx}-${maxIdx}`,
             { showOutput: false }
         );
-    } catch (e) {
+            } catch (e) {
         log(`Failed to unhide range ${minIdx}-${maxIdx}:`, e);
-    }
+            }
 
     store.ghostedIndices = [];
     toastr.clear(progressToast);
@@ -509,16 +512,16 @@ async function ghostMessagesUpTo(endIndex, startIndex = 0) {
 
     // ── Phase 2: Single range-based /hide command (the expensive part) ──
     if (!s.disableGhosting && newlyGhosted > 0) {
-        try {
+            try {
             // SillyTavern /hide supports inclusive ranges: /hide start-end
             await SillyTavern.getContext().executeSlashCommandsWithOptions(
                 `/hide ${rangeStart}-${rangeEnd}`,
                 { showOutput: false }
             );
-        } catch (e) {
+            } catch (e) {
             console.error(LOG_PREFIX, `Failed to hide range ${rangeStart}-${rangeEnd}:`, e);
+            }
         }
-    }
 
     log(`Ghosted messages ${rangeStart}–${rangeEnd} (${newlyGhosted} newly marked)${s.disableGhosting ? ' (hiding disabled — metadata only)' : ''}`);
 }
@@ -1358,60 +1361,71 @@ async function runCatchup(visibleTurns, overflow) {
 // ─── Catch-Up Dialog ─────────────────────────────────────────────────
 
 async function showCatchupDialog(overflowCount, estimatedCalls) {
-    return new Promise((resolve) => {
-        const s = getSettings();
+    const s = getSettings();
 
-        const overlay = document.createElement('div');
-        overlay.className = 'sc-catchup-overlay';
-        overlay.innerHTML = `
-        <div class="sc-catchup-modal">
+    const content = DOMPurify.sanitize(`
         <h3>🧠 Summaryception — Backlog Detected</h3>
         <div class="sc-catchup-dialog">
-        <p>Summaryception detected <strong>${overflowCount} unsummarized turns</strong>
-        in this chat (beyond your ${s.verbatimTurns} verbatim limit).</p>
-        <p>This will require approximately <strong>${estimatedCalls} summarizer calls</strong> to process.</p>
-        <hr>
-        <div class="sc-catchup-options">
-        <button id="sc_catchup_full" class="menu_button">
-        <i class="fa-solid fa-forward-fast"></i>
-        <div class="sc-btn-text">
-        <span class="sc-btn-label">Process Entire Backlog</span>
-        <span class="sc-btn-desc">Summarize all ${overflowCount} turns — cancelable at any time</span>
+            <p>Summaryception detected <strong>${escapeHtml(String(overflowCount))}</strong> unsummarized turns
+            in this chat (beyond your <strong>${escapeHtml(String(s.verbatimTurns))}</strong> verbatim limit.</p>
+            <p>This will require approximately <strong>${escapeHtml(String(estimatedCalls))}</strong> summarizer call${estimatedCalls === 1 ? '' : 's'} to process.</p>
+            <div class="sc-catchup-options">
+                <div class="sc-option">
+                    <div class="sc-option-icon"><i class="fa-solid fa-forward-fast"></i></div>
+                    <div class="sc-option-info">
+                        <div class="sc-option-label">Process Entire Backlog</div>
+                        <div class="sc-option-desc">Summarize all ${escapeHtml(String(overflowCount))} turns — cancelable at any time</div>
+                    </div>
+                </div>
+                <div class="sc-option">
+                    <div class="sc-option-icon"><i class="fa-solid fa-forward-step"></i></div>
+                    <div class="sc-option-info">
+                        <div class="sc-option-label">Skip Backlog</div>
+                        <div class="sc-option-desc">Ignore old turns, only summarize new ones going forward</div>
+                    </div>
+                </div>
+                <div class="sc-option">
+                    <div class="sc-option-icon"><i class="fa-solid fa-play"></i></div>
+                    <div class="sc-option-info">
+                        <div class="sc-option-label">Just One Batch</div>
+                        <div class="sc-option-desc">Summarize ${escapeHtml(String(s.turnsPerSummary))} turns now, deal with the rest later</div>
+                    </div>
+                </div>
+            </div>
         </div>
-        </button>
-        <button id="sc_catchup_skip" class="menu_button">
-        <i class="fa-solid fa-forward-step"></i>
-        <div class="sc-btn-text">
-        <span class="sc-btn-label">Skip Backlog</span>
-        <span class="sc-btn-desc">Ignore old turns, only summarize new ones going forward</span>
-        </div>
-        </button>
-        <button id="sc_catchup_partial" class="menu_button">
-        <i class="fa-solid fa-play"></i>
-        <div class="sc-btn-text">
-        <span class="sc-btn-label">Just One Batch</span>
-        <span class="sc-btn-desc">Summarize ${s.turnsPerSummary} turns now, deal with the rest later</span>
-        </div>
-        </button>
-        </div>
-        </div>
-        </div>
-        `;
-        document.body.appendChild(overlay);
+    `);
 
-        overlay.querySelector('#sc_catchup_full').addEventListener('click', () => {
-            overlay.remove();
-            resolve('catchup');
-        });
-        overlay.querySelector('#sc_catchup_skip').addEventListener('click', () => {
-            overlay.remove();
-            resolve('skip');
-        });
-        overlay.querySelector('#sc_catchup_partial').addEventListener('click', () => {
-            overlay.remove();
-            resolve('partial');
-        });
+    const popup = new Popup(content, POPUP_TYPE.TEXT, '', {
+        wide: true,
+        large: true,
+        allowVerticalScrolling: true,
+        okButton: false,
+        cancelButton: 'Skip Backlog',
+        customButtons: [
+            {
+                text: 'Process Entire Backlog',
+                result: POPUP_RESULT.CUSTOM1,
+                classes: ['menu_button', 'sc-catchup-btn'],
+            },
+            {
+                text: 'Just One Batch',
+                result: POPUP_RESULT.CUSTOM2,
+                classes: ['menu_button', 'sc-catchup-btn'],
+            },
+        ],
     });
+
+    const result = await popup.show();
+
+    switch (result) {
+        case POPUP_RESULT.CUSTOM1:
+            return 'catchup';
+        case POPUP_RESULT.CUSTOM2:
+            return 'partial';
+        case POPUP_RESULT.CANCELLED:
+        default:
+            return 'skip';
+    }
 }
 
 // ─── Core: Layer Promotion ("ception") ──────────────────────────────

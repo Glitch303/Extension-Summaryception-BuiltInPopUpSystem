@@ -5,8 +5,8 @@
     "optional": [],
     "js": "index.js",
     "css": "style.css",
-    "author": "Lodactio",
+    "author": "Shyn",
     "version": "5.5.4",
-    "homePage": "https://github.com/Lodactio/Extension-Summaryception",
-    "auto_update": true
+    "homePage": "https://github.com/Glitch303/extension-Summaryception-BuiltInPopUpSystem",
+    "auto_update": false
 }

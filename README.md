@@ -6,6 +6,8 @@
 
 Summaryception is a non-destructive, context-aware memory system for [SillyTavern](https://github.com/SillyTavern/SillyTavern) that replaces brute-force context stuffing with intelligent layered summarization. It keeps your most recent turns verbatim while compressing older conversation into ultra-compact summary snippets — organized in recursive layers that scale indefinitely.
 
+This fork only remwork the Pop-Up system to use SillyTavern Built-In Pop System to avoid UI Issue on Mobile.
+
 ---
 
 ## ✨ The Problem
